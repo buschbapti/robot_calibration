@@ -19,7 +19,7 @@ class Calibration(object):
         self.eef_frame = eef_frame
         self.camera_frame = camera_frame
         self.marker_frame = marker_frame
-        self.bounds = init_bounds(abs_range_pos, abs_range_rot)
+        self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
         self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
     
         rospack = rospkg.RosPack()
@@ -27,7 +27,7 @@ class Calibration(object):
         if not exists(self.conf_dir):
             makedirs(self.conf_dir)
 
-    def init_bounds(abs_range_pos, abs_range_rot):
+    def init_bounds(self, abs_range_pos, abs_range_rot):
         bounds = []
         pos_bounds = [-abs_range_pos, abs_range_pos]
         rot_bounds = [-abs_range_rot, abs_range_rot]
@@ -38,7 +38,7 @@ class Calibration(object):
                 bounds.append(rot_bounds)
         return bounds
 
-    def record_calibration_points(continuous = True, duration=60, min_dist=0.01, max_dur=0.05):
+    def record_calibration_points(self, continuous = True, duration=60, min_dist=0.01, max_dur=0.05):
         mat_robot = [] # Matrix of all calibration points of eef_frame in robot_frame
         mat_camera = [] # Matrix of all calibration points of marker_frame in frame camera_frame
         max_dur = rospy.Duration(max_dur) # seconds
@@ -48,18 +48,18 @@ class Calibration(object):
         last_point = None
         entry = ""
         while continuous and rospy.Time.now()<start+duration or not continuous and entry=="":   
-            ref_time = tfl.getLatestCommonTime(self.eef_frame, self.marker_frame)
+            ref_time = self.tfl.getLatestCommonTime(self.eef_frame, self.marker_frame)
             now = rospy.Time.now()
             
             if ref_time > now - max_dur:
                 try:
-                    pose_rg_robot = tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
+                    pose_rg_robot = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
                 except Exception, e:
                     print("Robot <-> Camera transformation not available at the last known common time:", e.message)
                 else:
                     if last_point is None or transformations.distance(pose_rg_robot, last_point)>min_dist:
                         try:
-                            pose_rg_opt = tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
+                            pose_rg_opt = self.tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
                         except:
                             print("Marker not visible at the last know common time")
                         else:
@@ -76,6 +76,7 @@ class Calibration(object):
                 entry = raw_input("Press enter to record a new point or q-enter to quit ({} points)".format(len(mat_robot)))
         return mat_opt, mat_robot
 
+    @staticmethod
     def extract_transforms(flat_transforms):
         # a transform is 3 pos and 4 rot
         nb_transform = len(flat_transforms) / 7
@@ -89,10 +90,12 @@ class Calibration(object):
             list_transforms.append(pose)
         return list_transforms
         
+    @staticmethod
     def result_to_calibration_matrix(result):
         calibration_matrix = transformations.inverse_transform(result)
         return [map(float, calibration_matrix[0]), map(float, calibration_matrix[1].tolist())]
 
+    @staticmethod
     def evaluate_calibration(calibrations, coords_robot, coords_opt):
         def quaternion_cost(norm_coeff):
             C = 0
@@ -108,7 +111,7 @@ class Calibration(object):
             rot_cost = 1 - np.inner(pose1[1], pose2[1])**2
             return pos_cost + rot_coeff * rot_cost
         # first extract the transformations
-        list_calibr = extract_transforms(calibrations)
+        list_calibr = Calibration.extract_transforms(calibrations)
         # set the base transform
         A = list_calibr[0]
         B = list_calibr[1]
@@ -124,31 +127,20 @@ class Calibration(object):
             cost += distance_cost(opt, product)
         return cost
 
-    def calculate_position_error(A, B, coords_robot, coords_opt):
-        norm = 0.
-        # precision error
-        for i in range(len(coords_robot)):
-            robot = coords_robot[i]
-            opt = coords_opt[i]
-            product = tranformations.multiply_tranform(robot, B)
-            product = tranformations.multiply_tranform(A, product)
-            norm += np.linalg.norm(opt[0], product[0])
-        return norm
-
-    def calibrate():
+    def calibrate(self):
         raw_input("Press enter to start the recording process")
         # Record during 60 sec... set continuous=False for an interactive mode
-        mat_opt, mat_robot = record_calibration_points(continuous=True)
+        mat_opt, mat_robot = self.record_calibration_points(continuous=True)
 
         print("Recording finished, calibrating, please wait.")
         t0 = time.time()
         # Be patient, this cell can be long to execute...
-        result = minimize(evaluate_calibration, initial_guess, args=(mat_robot, mat_opt, ),
+        result = minimize(self.evaluate_calibration, initial_guess, args=(mat_robot, mat_opt, ),
                           method='L-BFGS-B', bounds=bounds)
         print time.time()-t0, "seconds of optimization"
-        result_list = extract_transforms(result.x)
+        result_list = self.extract_transforms(result.x)
 
-        calibration_matrix_a = result_to_calibration_matrix(result_list[0])
+        calibration_matrix_a = self.result_to_calibration_matrix(result_list[0])
         rospy.set_param(self.camera_frame + "/calibration_matrix", calibration_matrix_a)
 
         with open(join(self.conf_dir, "calibration_matrix.yaml"), 'w') as f:

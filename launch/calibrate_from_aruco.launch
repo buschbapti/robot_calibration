@@ -1,0 +1,13 @@
+<launch>
+	<arg name="robot_frame" default="base"/>
+    <arg name="camera_frame" default="camera/1"/>
+    <arg name="marker_frame" default="marker/1"/>
+    <arg name="eef_frame" default="gripper"/>
+
+	<param name="robot_frame" value="$(arg robot_frame)"/>
+    <param name="camera_frame" value="$(arg camera_frame)"/>
+    <param name="marker_frame" value="$(arg marker_frame)"/>
+    <param name="eef_frame" value="$(arg marker_frame)"/>
+
+    <node pkg="robot_calibration" type="calibration" name="robot_calibration" output="screen"/>
+</launch>
