@@ -143,7 +143,6 @@ class Calibration(object):
         result_list = self.extract_transforms(result.x)
 
         calibration_matrix_a = self.result_to_calibration_matrix(result_list[0])
-        rospy.set_param(self.camera_frame + "/calibration_matrix", calibration_matrix_a)
 
         with open(join(self.conf_dir, "calibration_matrix.yaml"), 'w') as f:
             yaml.dump(calibration_matrix_a, f)
