@@ -1,13 +1,20 @@
-<launch>
-	<arg name="robot_frame" default="base"/>
-    <arg name="camera_frame" default="camera/1"/>
-    <arg name="marker_frame" default="marker/1"/>
-    <arg name="eef_frame" default="gripper"/>
+<launch>    
+    <arg name="ci" default="1"/>
+	<arg name="robot_frame" default="world"/>
+    <arg name="camera_frame" default="camera/$(arg ci)"/>
+    <arg name="marker_frame" default="marker/42"/>
+    <arg name="eef_frame" default="lwr_7_link"/>
+    <arg name="l" default="0.08"/>
 
 	<param name="robot_frame" value="$(arg robot_frame)"/>
     <param name="camera_frame" value="$(arg camera_frame)"/>
     <param name="marker_frame" value="$(arg marker_frame)"/>
-    <param name="eef_frame" value="$(arg marker_frame)"/>
+    <param name="eef_frame" value="$(arg eef_frame)"/>
+
+    <include file="$(find aruco_markers)/launch/pose_publisher.launch">
+    	<arg name="l" value="$(arg l)"/>
+    	<arg name="ci" value="$(arg ci)"/>
+    </include>
 
     <node pkg="robot_calibration" type="calibration" name="robot_calibration" output="screen"/>
 </launch>
