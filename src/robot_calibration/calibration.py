@@ -151,8 +151,8 @@ class Calibration(object):
         calibration_matrix_a = self.result_to_calibration_matrix(result_list[0])
         calibration_matrix_b = self.result_to_calibration_matrix(result_list[1])
 
-        if exists(join(self.conf_dir, "calibration_matrices.yaml")):
-            with open(join(self.conf_dir, "calibration_matrices.yaml"), 'r') as f:
+        if exists(join(self.conf_dir, "calibration_matrices.yml")):
+            with open(join(self.conf_dir, "calibration_matrices.yml"), 'r') as f:
                 calibrations = yaml.load(f)
         else:
             calibrations = {}
@@ -168,6 +168,6 @@ class Calibration(object):
             key = self.eef_frame + "-" + self.marker_frame
             calibrations[key] = calibration_matrix_b
 
-        with open(join(self.conf_dir, "calibration_matrices.yaml"), 'w') as f:
+        with open(join(self.conf_dir, "calibration_matrices.yml"), 'w') as f:
             yaml.dump(calibration, f)
         print("Calibration complete")

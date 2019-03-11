@@ -15,7 +15,7 @@ def run(source, target):
     rospack = rospkg.RosPack()
     conf_dir = join(rospack.get_path("robot_calibration"), "config")
 
-    with open(join(conf_dir, "calibration_matrices.yaml"), "r") as f:
+    with open(join(conf_dir, "calibration_matrices.yml"), "r") as f:
         calib_matrices = yaml.load(f)
     
     while not rospy.is_shutdown():

@@ -3,8 +3,11 @@
 	<arg name="robot_frame" default="world"/>
     <arg name="camera_frame" default="camera/$(arg ci)"/>
     <arg name="marker_frame" default="marker/42"/>
+    <arg name="is_mobile" default="True"/>
+    <arg name="base_marker_frame" default="marker/12"/>
     <arg name="eef_frame" default="lwr_7_link"/>
     <arg name="l" default="0.08"/>
+
 
 	<param name="robot_frame" value="$(arg robot_frame)"/>
     <param name="camera_frame" value="$(arg camera_frame)"/>
