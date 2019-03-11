@@ -4,6 +4,7 @@ import tf
 import json
 import rospkg
 import yaml
+import numpy as np
 from os import system
 from scipy.optimize import minimize
 import time
@@ -50,36 +51,34 @@ class Calibration(object):
         last_point = None
         entry = ""
         while continuous and rospy.Time.now()<start+duration or not continuous and entry=="":   
-            ref_time = self.tfl.getLatestCommonTime(self.eef_frame, self.marker_frame)
-            now = rospy.Time.now()
-            
-            if ref_time > now - max_dur:
-                try:
-                    pose_rg_robot = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
-                except Exception, e:
-                    print("Robot <-> Camera transformation not available at the last known common time:", e.message)
-                else:
-                    if last_point is None or transformations.distance(pose_rg_robot, last_point)>min_dist:
-                        try:
-                            pose_rg_opt = self.tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
-                        except:
-                            print("Marker not visible at the last know common time")
-                        else:
-                            mat_robot.append(np.array(pose_rg_robot))
-                            mat_camera.append(np.array(pose_rg_opt))
-                            last_point = pose_rg_robot
-                            system('beep')
+            try:
+                pose_rg_robot = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
+            except Exception, e:
+                print("Robot <-> Camera transformation not available at the last known common time:", e.message)              
+            else:
+                if last_point is None or transformations.distance(pose_rg_robot, last_point)>min_dist:
+                    try:
+                        pose_rg_opt = self.tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
+                    except:
+                        print("Marker not visible at the last know common time")
+                    else:
+                        mat_robot.append(np.array(pose_rg_robot))
+                        mat_camera.append(np.array(pose_rg_opt))
+                        last_point = pose_rg_robot
                         if not self.base_marker_frame is None:
                             try:
                                 pose_mobile_base = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
-            else:
-                print "TFs are", (now - ref_time).to_sec(), "sec late"
+                            except Exception, e:
+                            print("Base <-> Camera transformation not available at the last known common time:", e.message)
+                        print("pose recorded")
+            # else:
+            #     print "TFs are", (now - ref_time).to_sec(), "sec late"
             
             if continuous:
                 rospy.sleep(0.25)
             else:
                 entry = raw_input("Press enter to record a new point or q-enter to quit ({} points)".format(len(mat_robot)))
-        return mat_opt, mat_robot
+        return mat_camera, mat_robot
 
     @staticmethod
     def extract_transforms(flat_transforms):
@@ -135,18 +134,18 @@ class Calibration(object):
     def calibrate(self):
         raw_input("Press enter to start the recording process")
         # Record during 60 sec... set continuous=False for an interactive mode
-        mat_opt, mat_robot = self.record_calibration_points(continuous=True)
+        mat_camera, mat_robot = self.record_calibration_points(continuous=True)
 
+        initial_guess = [0,0,0,0,0,0,1]*2
         print("Recording finished, calibrating, please wait.")
         t0 = time.time()
         # Be patient, this cell can be long to execute...
-        result = minimize(self.evaluate_calibration, initial_guess, args=(mat_robot, mat_opt, ),
-                          method='L-BFGS-B', bounds=bounds)
+        result = minimize(self.evaluate_calibration, initial_guess, args=(mat_robot, mat_camera, ),
+                          method='L-BFGS-B', bounds=self.bounds)
         print time.time()-t0, "seconds of optimization"
         result_list = self.extract_transforms(result.x)
 
         calibration_matrix_a = self.result_to_calibration_matrix(result_list[0])
-        rospy.set_param(self.camera_frame + "/calibration_matrix", calibration_matrix_a)
 
         with open(join(self.conf_dir, "calibration_matrix.yaml"), 'w') as f:
             yaml.dump(calibration_matrix_a, f)
