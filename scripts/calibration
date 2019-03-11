@@ -9,7 +9,7 @@ def main():
     marker_frame = rospy.get_param('marker_frame') # The frame used for calibration in the optitrack's frame
     eef_frame = rospy.get_param('eef_frame') # The frame used for calibration in the robot's frame
 
-    if rospy.get_param('is_mobile') == "True":
+    if rospy.get_param('is_mobile'):
     	base_marker_frame = rospy.get_param('base_marker_frame')
     else:
     	base_marker_frame = None

@@ -24,7 +24,6 @@ class Calibration(object):
         self.base_marker_frame = base_marker_frame
         self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
         self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
-    
         rospack = rospkg.RosPack()
         self.conf_dir = join(rospack.get_path("robot_calibration"), "config")
         if not exists(self.conf_dir):
@@ -53,15 +52,16 @@ class Calibration(object):
         entry = ""
         while continuous and rospy.Time.now()<start+duration or not continuous and entry=="":   
             try:
+                self.tfl.waitForTransform(self.robot_frame, self.eef_frame, rospy.Time(0), rospy.Duration(2))
                 pose_rg_robot = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
             except Exception, e:
-                print("Robot <-> Camera transformation not available at the last known common time:", e.message)              
+                print("Robot <-> Eef transformation not available at the last known common time:", e.message)              
             else:
                 if last_point is None or transformations.distance(pose_rg_robot, last_point)>min_dist:
                     try:
                         pose_rg_opt = self.tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
-                    except:
-                        print("Marker not visible at the last know common time")
+                    except Exception, e:
+                        print("Camera <-> Marker transformation not available at the last known common time:", e.message)
                     else:
                         mat_robot.append(np.array(pose_rg_robot))
                         mat_camera.append(np.array(pose_rg_opt))
@@ -101,7 +101,7 @@ class Calibration(object):
         return [map(float, calibration_matrix[0]), map(float, calibration_matrix[1].tolist())]
 
     @staticmethod
-    def evaluate_calibration(calibrations, coords_robot, coords_opt, coords_base):
+    def evaluate_calibration(calibrations, coords_robot, coords_opt, coords_base, is_mobile):
         def quaternion_cost(norm_coeff):
             C = 0
             for transform in list_calibr:
@@ -128,7 +128,7 @@ class Calibration(object):
             opt = coords_opt[i]
             product = transformations.multiply_transform(robot, B)
             product = transformations.multiply_transform(A, product)
-            if self.is_mobile:
+            if is_mobile:
                 mobile_base = coords_base[i]
                 product = transformations.multiply_transform(mobile_base, product)
             product[1] /= np.linalg.norm(product[1])
@@ -143,7 +143,7 @@ class Calibration(object):
         print("Recording finished, calibrating, please wait.")
         t0 = time.time()
         # Be patient, this cell can be long to execute...
-        result = minimize(self.evaluate_calibration, initial_guess, args=(mat_robot, mat_camera, mat_mobile_base),
+        result = minimize(self.evaluate_calibration, initial_guess, args=(mat_robot, mat_camera, mat_mobile_base, self.is_mobile),
                           method='L-BFGS-B', bounds=self.bounds)
         print time.time()-t0, "seconds of optimization"
         result_list = self.extract_transforms(result.x)
@@ -169,5 +169,5 @@ class Calibration(object):
             calibrations[key] = calibration_matrix_b
 
         with open(join(self.conf_dir, "calibration_matrices.yml"), 'w') as f:
-            yaml.dump(calibration, f)
+            yaml.dump(calibrations, f)
         print("Calibration complete")
