@@ -7,24 +7,25 @@ from os.path import join
 from tf import TransformBroadcaster
 
 
-def run():
-    robot_frame = rospy.get_param('robot_frame')
-    camera_frame = rospy.get_param('camera_frame')
+def run(source, target):
+    key = source + "-" + target
     tfb = TransformBroadcaster()
     rate = rospy.Rate(50)
 
     rospack = rospkg.RosPack()
     conf_dir = join(rospack.get_path("robot_calibration"), "config")
 
-    with open(join(conf_dir, "calibration_matrix.yaml"), "r") as f:
-        calib_matrix = yaml.load(f)
+    with open(join(conf_dir, "calibration_matrices.yaml"), "r") as f:
+        calib_matrices = yaml.load(f)
     
     while not rospy.is_shutdown():
         # Publish the calibration matrix    
-        tfb.sendTransform(calib_matrix[0], calib_matrix[1], rospy.Time.now(), camera_frame, robot_frame)
+        tfb.sendTransform(calib_matrices[key][0], calib_matrices[key][1], rospy.Time.now(), source, target)
         rate.sleep()
 
 
 if __name__ == '__main__':
+    source = sys.argv[1]
+    target = sys.argv[2]
     rospy.init_node('calibration_publisher', anonymous=True)
-    run()
+    run(source, target)
