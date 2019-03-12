@@ -20,5 +20,5 @@
     	<!-- <arg name="ci" value="$(arg ci)"/> -->
     <!-- </include> -->
 
-    <node pkg="robot_calibration" type="calibration" name="robot_calibration" output="screen"/>
+    <node pkg="robot_calibration" type="calibration" name="robot_calibration" output="screen" required="true"/>
 </launch>
