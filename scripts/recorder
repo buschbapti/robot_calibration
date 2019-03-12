@@ -3,6 +3,7 @@ import rospy
 from robot_calibration.recorder import Recorder
 import sys
 
+
 def main(joint_state_channel):
     #joint_state_channel = rospy.get_param('joint_state_channel')
     rec = Recorder(joint_state_channel)
@@ -15,26 +16,24 @@ def main(joint_state_channel):
             rospy.loginfo("The file name should at least contain one character. Please enter a valid name:")
             savefile = raw_input()
         
-        if rospy.is_shutdown():
-            break
+        if rospy.is_shutdown(): return
 
         rospy.loginfo("Press enter to start recording.")
         raw_input()
         rec.start_recording()
 
-        if rospy.is_shutdown():
-            break
+        if rospy.is_shutdown(): return
 
         rospy.loginfo("Recording... Press enter to stop recording.")
         raw_input()
         filepath = rec.stop_recording(savefile)
 
-        if rospy.is_shutdown():
-            break
+        if rospy.is_shutdown(): return
 
         rospy.loginfo("Recorded data saved in " + filepath + ". Record a new demonstration? y/N:")
         resp = raw_input()
         new_recording = (resp == "y")
+
 
 if __name__ == '__main__':
     rospy.init_node('recorder')
