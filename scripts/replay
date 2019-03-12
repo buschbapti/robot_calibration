@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+import rospy
+from robot_calibration.replay import Replay
+import sys
+from os.path import exists
+
+
+def main(joint_state_channel, hz=10):
+    #joint_state_channel = rospy.get_param('joint_state_channel')
+    rep = Replay(joint_state_channel)
+    new_replay = True
+    play_again = True
+    is_correct = False
+    
+    while new_replay and not rospy.is_shutdown():
+        rospy.loginfo("Please enter the name of the file containing the recordings to replay (do not put the path nor the extension):")
+        savefile = raw_input()
+        
+        while not is_correct and not rospy.is_shutdown():
+            while savefile == "" and not rospy.is_shutdown():
+                rospy.logerr("The file name should at least contain one character. Please enter a valid name:")
+                savefile = raw_input()
+            is_correct = rep.record_exists(savefile)
+            if not is_correct:
+                rospy.logerr("The desired file does not exists. Please enter a valid name:")
+                savefile = raw_input()
+        
+        if rospy.is_shutdown(): return
+
+        while play_again and not rospy.is_shutdown():
+            rospy.loginfo("Press enter to start replaying.")
+            raw_input()
+            rep.start_replaying(savefile, hz)
+
+            if rospy.is_shutdown(): return
+
+            rospy.loginfo("Finished replaying. Play again? y/N:")
+            resp = raw_input()
+            play_again = (resp == "y")
+
+        if rospy.is_shutdown(): return
+
+        rospy.loginfo("Play another file? y/N:")
+        resp = raw_input()
+        new_replay = (resp == "y")
+        play_again = (resp == "y")
+
+
+if __name__ == '__main__':
+    rospy.init_node('replay')
+    if len(sys.argv) == 3:
+        main(sys.argv[1], int(sys.argv[2]))
+    elif len(sys.argv) == 2:
+        main(sys.argv[1])
+    else:
+        rospy.logerr("Pass the channel to publish to as argument")
