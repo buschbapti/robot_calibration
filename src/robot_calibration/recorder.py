@@ -4,6 +4,8 @@ import rospkg
 from sensor_msgs.msg import JointState
 from multiprocessing import Lock
 from os.path import join
+from os.path import exists
+from os import makedirs
 import json
 
 
@@ -11,6 +13,9 @@ class Recorder(object):
     def __init__(self, joint_state_channel):
         rospack = rospkg.RosPack()
         self.data_dir = join(rospack.get_path("robot_calibration"), "data")
+        if not exists(self.data_dir):
+            makedirs(self.data_dir)
+
         self.recording = False
         self.recorded_data = []
         self.lock = Lock()
@@ -18,7 +23,7 @@ class Recorder(object):
         rospy.Subscriber(joint_state_channel, JointState, self.joint_state_callback)
 
     def start_recording(self):
-        with self.lock():
+        with self.lock:
             self.recording = True
             self.recorde_data = []
 

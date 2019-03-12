@@ -1,29 +1,41 @@
 #!/usr/bin/env python
 import rospy
 from robot_calibration.recorder import Recorder
+import sys
 
-
-def main():
-    joint_state_channel = rospy.get_param('joint_state_channel')
+def main(joint_state_channel):
+    #joint_state_channel = rospy.get_param('joint_state_channel')
     rec = Recorder(joint_state_channel)
     new_recording = True
-
+    
     while new_recording and not rospy.is_shutdown():
-        rospy.loginfo("Please enter the name of the file to store the recording (do not put the path nor the extension)")
+        rospy.loginfo("Please enter the name of the file to store the recording (do not put the path nor the extension):")
         savefile = raw_input()
+        while savefile == "" and not rospy.is_shutdown():
+            rospy.loginfo("The file name should at least contain one character. Please enter a valid name:")
+            savefile = raw_input()
         
-        rospy.loginfo("Press enter to start recording")
+        if rospy.is_shutdown():
+            break
+
+        rospy.loginfo("Press enter to start recording.")
         raw_input()
         rec.start_recording()
 
-        rospy.loginfo("Recording... Press enter to stop recording")
-        raw_input()
-        filepath = rec.stop_recording()
+        if rospy.is_shutdown():
+            break
 
-        rospy.loginfo("Recorded data saved in " + filepath + ". Record a new demonstration? y/N")
+        rospy.loginfo("Recording... Press enter to stop recording.")
+        raw_input()
+        filepath = rec.stop_recording(savefile)
+
+        if rospy.is_shutdown():
+            break
+
+        rospy.loginfo("Recorded data saved in " + filepath + ". Record a new demonstration? y/N:")
         resp = raw_input()
-        new_recording = (resp == "y") 
+        new_recording = (resp == "y")
 
 if __name__ == '__main__':
     rospy.init_node('recorder')
-    main()
+    main(sys.argv[1])
