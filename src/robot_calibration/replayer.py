@@ -34,3 +34,9 @@ class Replayer(object):
     def record_exists(self, savefile):
         savefile = join(self.data_dir, savefile + ".json")
         return exists(savefile)
+
+    def get_first_state(self, savefile):
+        savefile = join(self.data_dir, savefile + ".json")
+        with open(savefile, 'r') as f:
+            data = json.load(f)
+        return data[0]

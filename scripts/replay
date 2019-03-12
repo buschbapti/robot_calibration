@@ -27,6 +27,11 @@ def main(joint_state_channel, hz=10):
         
         if rospy.is_shutdown(): return
 
+        state = rep.get_first_state(savefile)
+        param_name = savefile + "/first_state"
+        rospy.set_param(param_name, state)
+        rospy.logwarn("First state set in param " + param_name + ". Move the robot to this state before to start replaying.")
+
         while play_again and not rospy.is_shutdown():
             rospy.loginfo("Press enter to start replaying.")
             raw_input()
