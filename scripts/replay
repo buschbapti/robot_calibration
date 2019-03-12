@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 import rospy
-from robot_calibration.replay import Replay
+from robot_calibration.replayer import Replayer
 import sys
 from os.path import exists
 
 
 def main(joint_state_channel, hz=10):
     #joint_state_channel = rospy.get_param('joint_state_channel')
-    rep = Replay(joint_state_channel)
+    rep = Replayer(joint_state_channel)
     new_replay = True
     play_again = True
     is_correct = False

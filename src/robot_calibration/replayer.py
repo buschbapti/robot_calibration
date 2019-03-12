@@ -7,7 +7,7 @@ from os.path import exists
 import json
 
 
-class Replay(object):
+class Replayer(object):
     def __init__(self, joint_state_channel):
         rospack = rospkg.RosPack()
         self.data_dir = join(rospack.get_path("robot_calibration"), "data")
