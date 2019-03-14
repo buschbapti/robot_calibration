@@ -40,7 +40,7 @@ class Calibration(object):
                 bounds.append(rot_bounds)
         return bounds
 
-    def record_calibration_points(self, continuous = True, duration=60, min_dist=0.01, max_dur=0.05):
+    def record_calibration_points(self, continuous = True, duration=60, min_dist=0.01, max_dur=0.5):
         mat_robot = [] # Matrix of all calibration points of eef_frame in robot_frame
         mat_camera = [] # Matrix of all calibration points of marker_frame in frame camera_frame
         mat_mobile_base = [] # Matrix of all calibration points of marker_frame in frame camera_frame
@@ -50,30 +50,39 @@ class Calibration(object):
         start = rospy.Time.now()
         last_point = None
         entry = ""
-        while continuous and rospy.Time.now()<start+duration or not continuous and entry=="":   
+        while continuous and rospy.Time.now()<start+duration or not continuous and entry=="" and not rospy.is_shutdown():
+            c_time = rospy.Time.now()
             try:
-                self.tfl.waitForTransform(self.robot_frame, self.eef_frame, rospy.Time(0), rospy.Duration(2))
-                pose_rg_robot = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
+                is_robot_ok = c_time - self.tfl.getLatestCommonTime(self.robot_frame, self.eef_frame) < max_dur
+                is_camera_ok = c_time - self.tfl.getLatestCommonTime(self.camera_frame, self.marker_frame) < max_dur
+                is_mobile_ok = self.is_mobile and c_time - self.tfl.getLatestCommonTime(self.camera_frame, self.base_marker_frame) < max_dur
             except Exception, e:
-                print("Robot <-> Eef transformation not available at the last known common time:", e.message)              
+                 print("No common time for transformation:", e.message)
             else:
-                if last_point is None or transformations.distance(pose_rg_robot, last_point)>min_dist:
+                if is_robot_ok and is_camera_ok:
                     try:
-                        pose_rg_opt = self.tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
+                        self.tfl.waitForTransform(self.robot_frame, self.eef_frame, rospy.Time(0), rospy.Duration(2))
+                        pose_rg_robot = self.tfl.lookupTransform(self.robot_frame, self.eef_frame, rospy.Time(0))
                     except Exception, e:
-                        print("Camera <-> Marker transformation not available at the last known common time:", e.message)
+                        print("Robot <-> Eef transformation not available at the last known common time:", e.message)              
                     else:
-                        mat_robot.append(np.array(pose_rg_robot))
-                        mat_camera.append(np.array(pose_rg_opt))
-                        last_point = pose_rg_robot
-                        if self.is_mobile:
+                        if last_point is None or transformations.distance(pose_rg_robot, last_point)>min_dist:
                             try:
-                                pose_rg_base = self.tfl.lookupTransform(self.camera_frame, self.base_marker_frame, rospy.Time(0))
+                                pose_rg_opt = self.tfl.lookupTransform(self.camera_frame, self.marker_frame, rospy.Time(0))
                             except Exception, e:
-                                print("Base <-> Camera transformation not available at the last known common time:", e.message)
+                                print("Camera <-> Marker transformation not available at the last known common time:", e.message)
                             else:
-                                mat_mobile_base.append(np.array(pose_rg_base))
-                        print("pose recorded")
+                                mat_robot.append(np.array(pose_rg_robot))
+                                mat_camera.append(np.array(pose_rg_opt))
+                                last_point = pose_rg_robot
+                                if is_mobile_ok:
+                                    try:
+                                        pose_rg_base = self.tfl.lookupTransform(self.camera_frame, self.base_marker_frame, rospy.Time(0))
+                                    except Exception, e:
+                                        print("Base <-> Camera transformation not available at the last known common time:", e.message)
+                                    else:
+                                        mat_mobile_base.append(np.array(pose_rg_base))
+                                print("pose recorded")
             
             if continuous:
                 rospy.sleep(0.25)
