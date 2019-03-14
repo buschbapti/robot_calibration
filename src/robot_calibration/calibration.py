@@ -98,7 +98,8 @@ class Calibration(object):
     @staticmethod
     def result_to_calibration_matrix(result):
         calibration_matrix = transformations.inverse_transform(result)
-        return [map(float, calibration_matrix[0]), map(float, calibration_matrix[1].tolist())]
+        quat = calibration_matrix[1] / np.linalg.norm(calibration_matrix[1])
+        return [map(float, calibration_matrix[0]), map(float, quat.tolist())]
 
     @staticmethod
     def evaluate_calibration(calibrations, coords_robot, coords_opt, coords_base, is_mobile):
