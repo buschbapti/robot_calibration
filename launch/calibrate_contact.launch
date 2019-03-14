@@ -1,0 +1,13 @@
+<launch>    
+    <arg name="robot1_frame" default="world"/>
+    <arg name="eef1_frame" default="lwr_7_link"/>
+    <arg name="robot2_frame" default="base_link"/>
+    <arg name="eef2_frame" default="ur5_arm_tool0"/>
+
+    <param name="robot1_frame" value="$(arg robot1_frame)"/>
+    <param name="eef1_frame" value="$(arg eef1_frame)"/>
+    <param name="robot2_frame" value="$(arg robot2_frame)"/>
+    <param name="eef2_frame" value="$(arg eef2_frame)"/>
+
+    <node pkg="robot_calibration" type="calibration2" name="calibration_contact" output="screen" required="true"/>
+</launch>

@@ -15,15 +15,30 @@ from robot_calibration import transformations
 
 
 class Calibration(object):
-    def __init__(self, robot_frame, eef_frame, camera_frame, marker_frame, base_marker_frame=None, abs_range_pos=4, abs_range_rot=1):
-        self.robot_frame = robot_frame
-        self.eef_frame = eef_frame
-        self.camera_frame = camera_frame
-        self.marker_frame = marker_frame
-        self.is_mobile = not base_marker_frame is None
-        self.base_marker_frame = base_marker_frame
+    # def __init__(self, robot_frame, eef_frame, camera_frame, marker_frame, base_marker_frame=None, abs_range_pos=4, abs_range_rot=1):
+    #     self.robot_frame = robot_frame
+    #     self.eef_frame = eef_frame
+    #     self.camera_frame = camera_frame
+    #     self.marker_frame = marker_frame
+    #     self.is_mobile = not base_marker_frame is None
+    #     self.base_marker_frame = base_marker_frame
+    #     self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
+    #     self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
+        
+    #     rospack = rospkg.RosPack()
+    #     self.conf_dir = join(rospack.get_path("robot_calibration"), "config")
+    #     if not exists(self.conf_dir):
+    #         makedirs(self.conf_dir)
+
+    def __init__(self, robot1_frame, eef1_frame, robot2_frame, eef2_frame, abs_range_pos=4, abs_range_rot=1):
+        self.robot1_frame = robot1_frame
+        self.eef1_frame = eef1_frame
+        self.robot2_frame = robot2_frame
+        self.eef2_frame = eef2_frame
+        
         self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
         self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
+        
         rospack = rospkg.RosPack()
         self.conf_dir = join(rospack.get_path("robot_calibration"), "config")
         if not exists(self.conf_dir):
@@ -40,7 +55,7 @@ class Calibration(object):
                 bounds.append(rot_bounds)
         return bounds
 
-    def record_calibration_points(self, continuous = True, duration=60, min_dist=0.01, max_dur=0.5):
+    def record_calibration_points(self, continuous = True, duration=60, min_dist=0.01, max_dur=2):
         mat_robot = [] # Matrix of all calibration points of eef_frame in robot_frame
         mat_camera = [] # Matrix of all calibration points of marker_frame in frame camera_frame
         mat_mobile_base = [] # Matrix of all calibration points of marker_frame in frame camera_frame
@@ -89,6 +104,48 @@ class Calibration(object):
             else:
                 entry = raw_input("Press enter to record a new point or q-enter to quit ({} points)".format(len(mat_robot)))
         return mat_camera, mat_robot, mat_mobile_base
+
+    def record_calibration_points2(self, continuous = True, duration=60, min_dist=0.01, max_dur=2):
+        mat_robot1 = [] # Matrix of all calibration points of eef_frame in robot_frame
+        mat_robot2 = [] # Matrix of all calibration points of marker_frame in frame camera_frame
+        max_dur = rospy.Duration(max_dur) # seconds
+        duration = rospy.Duration(duration)
+        
+        start = rospy.Time.now()
+        last_point = None
+        entry = ""
+        while continuous and rospy.Time.now()<start+duration or not continuous and entry=="" and not rospy.is_shutdown():
+            c_time = rospy.Time.now()
+            try:
+                is_robot1_ok = c_time - self.tfl.getLatestCommonTime(self.robot1_frame, self.eef1_frame) < max_dur
+                is_robot2_ok = c_time - self.tfl.getLatestCommonTime(self.robot2_frame, self.eef2_frame) < max_dur
+            except Exception, e:
+                 print("No common time for transformation:", e.message)
+            else:
+                if is_robot1_ok and is_robot2_ok:
+                    try:
+                        self.tfl.waitForTransform(self.robot1_frame, self.eef1_frame, rospy.Time(0), rospy.Duration(2))
+                        pose_rg_robot1 = self.tfl.lookupTransform(self.robot1_frame, self.eef1_frame, rospy.Time(0))
+                    except Exception, e:
+                        print("Robot1 <-> Eef1 transformation not available at the last known common time:", e.message)              
+                    else:
+                        if last_point is None or transformations.distance(pose_rg_robot1, last_point)>min_dist:
+                            try:
+                                self.tfl.waitForTransform(self.robot2_frame, self.eef2_frame, rospy.Time(0), rospy.Duration(2))
+                                pose_rg_robot2 = self.tfl.lookupTransform(self.robot2_frame, self.eef2_frame, rospy.Time(0))
+                            except Exception, e:
+                                print("Robot2 <-> Eef2 transformation not available at the last known common time:", e.message)
+                            else:
+                                mat_robot1.append(np.array(pose_rg_robot1))
+                                mat_robot2.append(np.array(pose_rg_robot2))
+                                last_point = pose_rg_robot1
+                                print("pose recorded")
+            
+            if continuous:
+                rospy.sleep(0.25)
+            else:
+                entry = raw_input("Press enter to record a new point or q-enter to quit ({} points)".format(len(mat_robot1)))
+        return mat_robot1, mat_robot2
 
     @staticmethod
     def extract_transforms(flat_transforms):
@@ -145,6 +202,56 @@ class Calibration(object):
             cost += distance_cost(opt, product)
         return cost
 
+    @staticmethod
+    def evaluate_calibration2(calibrations, coords_robot1, coords_robot2):
+        # def quaternion_cost(norm_coeff):
+        #     C = 0
+        #     for transform in list_calibr:
+        #         # norm of a quaternion is always 1
+        #         C += norm_coeff * abs(np.linalg.norm(transform[1]) - 1)
+            # return C
+        def distance_cost(pose1, pose2, rot_coeff=2):
+            pos_cost = 0
+            # calculate position ditance
+            pos_cost = np.linalg.norm(np.array(pose1[0]) - np.array(pose2[0]))
+            # distance between two quaternions
+            rot_cost = 1 - np.inner(pose1[1], pose2[1])**2
+            return pos_cost + rot_coeff * rot_cost
+        def alignement_cost(base_transform):
+            quat = base_transform[1]
+            return abs(quat[0]) + abs(quat[1])
+        def contact_cost(tools_transform):
+            quat = tools_transform[1]
+            return np.linalg.norm(tools_transform[0]) + abs(quat[2]) + abs(quat[3])
+
+        # first extract the transformations
+        list_calibr = Calibration.extract_transforms(calibrations)
+        # set the base transform
+        A = list_calibr[0]
+        B = list_calibr[1]
+
+        robot2_tool = transformations.identity()
+        robot2_tool[0][2] = -0.255
+
+        robot1_tool = transformations.identity()
+        robot1_tool[0][2] = 0.075
+
+        # loop trough all the transforms
+        # cost = quaternion_cost(1)
+        cost = 0
+        nb_points = len(coords_robot1)
+        for i in range(nb_points):
+            robot1 = coords_robot1[i]
+            robot2 = coords_robot2[i]
+            product = transformations.multiply_transform(transformations.inverse_transform(robot2), B)
+            product = transformations.multiply_transform(robot2_tool, product)
+            product = transformations.multiply_transform(A, product)
+            product = transformations.multiply_transform(robot1_tool, product)
+            product = transformations.multiply_transform(robot1, product)
+            product[1] /= np.linalg.norm(product[1])
+            cost += distance_cost(transformations.identity(), product) + alignement_cost(B) + contact_cost(A)
+        return cost
+
     def calibrate(self):
         raw_input("Press enter to start the recording process")
         # Record during 60 sec... set continuous=False for an interactive mode
@@ -177,6 +284,41 @@ class Calibration(object):
             calibrations[key] = calibration_matrix_a
             key = self.eef_frame + "-" + self.marker_frame
             calibrations[key] = calibration_matrix_b
+
+        with open(join(self.conf_dir, "calibration_matrices.yml"), 'w') as f:
+            yaml.dump(calibrations, f)
+        print("Calibration complete")
+
+    def calibrate2(self):
+        raw_input("Press enter to start the recording process")
+        # Record during 60 sec... set continuous=False for an interactive mode
+        mat_robot1, mat_robot2 = self.record_calibration_points2(continuous=False)
+
+        initial_guess = np.array([[0.1, 0.1, 0.1, 0, 0, 0, 1], [1, -0.5, 1, 0, 0, -0.5, 0.5]])
+        initial_guess[0, -4:] = initial_guess[0, -4:] / np.linalg.norm(initial_guess[0, -4:])
+        initial_guess[1, -4:] = initial_guess[1, -4:] / np.linalg.norm(initial_guess[1, -4:])
+
+        print("Recording finished, calibrating, please wait.")
+        t0 = time.time()
+        # Be patient, this cell can be long to execute...
+        result = minimize(self.evaluate_calibration2, initial_guess, args=(mat_robot1, mat_robot2,),
+                          method='L-BFGS-B', bounds=self.bounds)
+        print time.time()-t0, "seconds of optimization"
+        result_list = self.extract_transforms(result.x)
+
+        calibration_matrix_a = self.result_to_calibration_matrix(result_list[0])
+        calibration_matrix_b = self.result_to_calibration_matrix(result_list[1])
+
+        if exists(join(self.conf_dir, "calibration_matrices.yml")):
+            with open(join(self.conf_dir, "calibration_matrices.yml"), 'r') as f:
+                calibrations = yaml.load(f)
+        else:
+            calibrations = {}
+        
+        key = self.robot2_frame + "-" + self.robot1_frame
+        calibrations[key] = calibration_matrix_b
+        key = self.eef1_frame + "-" + self.eef2_frame
+        calibrations[key] = calibration_matrix_a
 
         with open(join(self.conf_dir, "calibration_matrices.yml"), 'w') as f:
             yaml.dump(calibrations, f)

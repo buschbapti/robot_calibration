@@ -1,0 +1,18 @@
+#!/usr/bin/env python
+import rospy
+from robot_calibration.calibration import Calibration
+
+
+def main():
+    robot1_frame = rospy.get_param('robot1_frame') # The world frame of the robot
+    eef1_frame = rospy.get_param('eef1_frame') # The frame used for calibration in the robot's frame
+    robot2_frame = rospy.get_param('robot2_frame') # The world frame of the robot
+    eef2_frame = rospy.get_param('eef2_frame') # The frame used for calibration in the robot's frame
+
+    cal = Calibration(robot1_frame, eef1_frame, robot2_frame, eef2_frame)
+    cal.calibrate2()
+
+   
+if __name__ == '__main__':
+    rospy.init_node('robot_calibration')
+    main()
