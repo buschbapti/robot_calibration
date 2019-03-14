@@ -1,0 +1,19 @@
+<launch>    
+    <arg name="ci" default="0"/>
+    <arg name="camera_frame" default="camera/$(arg ci)"/>
+    <arg name="ridgeback_frame" default="base_link"/>
+    <arg name="ridgeback_marker_frame" default="marker/42"/>
+    <arg name="ridgeback_eef_frame" default="ur5_arm_ee_link"/>
+    
+    <arg name="lwr_frame" default="world"/>
+    <arg name="lwr_marker_frame" default="marker/17"/>
+    <arg name="lwr_eef_frame" default="lwr_7_link"/>
+
+    <node pkg="robot_calibration" type="calibration_publisher" name="camera_ridgeback_publisher" args="$(arg camera_frame) $(arg ridgeback_frame)" output="screen" required="true"/>
+
+    <node pkg="robot_calibration" type="calibration_publisher" name="ridgeback_marker_publisher" args="$(arg ridgeback_eef_frame) $(arg ridgeback_marker_frame)" output="screen" required="true"/>
+
+    <node pkg="robot_calibration" type="calibration_publisher" name="camera_lwr_publisher" args="$(arg camera_frame) $(arg lwr_frame)" output="screen" required="true"/>
+
+    <node pkg="robot_calibration" type="calibration_publisher" name="ridgeback_lwr_publisher" args="$(arg lwr_eef_frame) $(arg lwr_marker_frame)" output="screen" required="true"/>
+</launch>
