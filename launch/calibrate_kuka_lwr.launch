@@ -1,9 +1,9 @@
 <launch>    
     <arg name="ci" default="0"/>
-    <arg name="robot_frame" default="base_link"/>
+    <arg name="robot_frame" default="world"/>
     <arg name="camera_frame" default="camera/$(arg ci)"/>
-    <arg name="marker_frame" default="marker/42"/>
-    <arg name="eef_frame" default="ur5_arm_ee_link"/>
+    <arg name="marker_frame" default="marker/17"/>
+    <arg name="eef_frame" default="lwr_7_link"/>
     <arg name="is_mobile" default="False"/>
     <arg name="base_marker_frame" default="marker/17"/>
     <arg name="l" default="0.08"/>
