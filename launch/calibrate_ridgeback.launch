@@ -15,5 +15,5 @@
     <param name="is_mobile" value="$(arg is_mobile)"/>
     <param name="base_marker_frame" value="$(arg base_marker_frame)"/>
 
-    <node pkg="robot_calibration" type="calibration" name="robot_calibration" output="screen" required="true"/>
+    <node pkg="robot_calibration" type="calibration" name="robot_calibration_ridgeback" output="screen" required="true"/>
 </launch>
