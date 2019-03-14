@@ -5,6 +5,7 @@ import rospkg
 import yaml
 from os.path import join
 from tf import TransformBroadcaster
+from robot_calibration import transformations
 
 
 def run(source, target):
@@ -19,8 +20,10 @@ def run(source, target):
         calib_matrices = yaml.load(f)
     
     while not rospy.is_shutdown():
-        # Publish the calibration matrix    
-        tfb.sendTransform(calib_matrices[key][0], calib_matrices[key][1], rospy.Time.now(), source, target)
+        # Publish the calibration matrix
+        transform = transformations.inverse_transform(calib_matrices[key])
+        # transform = calib_matrices[key]
+        tfb.sendTransform(transform[0], transform[1], rospy.Time.now(), target, source)
         rate.sleep()
 
 
