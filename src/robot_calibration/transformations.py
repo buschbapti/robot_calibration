@@ -2,7 +2,7 @@
 import rospy
 from geometry_msgs.msg import *
 from std_msgs.msg import *
-from numpy import ndarray, dot, sqrt, array, arccos, inner, zeros, fill_diagonal
+from numpy import ndarray, dot, sqrt, array, arccos, inner, zeros, ones
 import tf
 
 __all__ = ['pose_to_list', 'quat_to_list', 'list_to_quat', 'list_to_pose', 'list_to_pose', 'quat_rotate',
@@ -277,7 +277,8 @@ def norm(point):
     return sqrt(x*x + y*y + z*z)
 
 
-def identity(n):
-    i = zeros((n, n))
-    fill_diagonal(i, 1)
-    return i
+def identity(quaternion_rep=True):
+    if quaternion_rep:
+        return array([[0, 0, 0], [0, 0, 0, 1]])
+    else:
+        return eye(4)
