@@ -15,27 +15,13 @@ from robot_calibration import transformations
 
 
 class Calibration(object):
-    # def __init__(self, robot_frame, eef_frame, camera_frame, marker_frame, base_marker_frame=None, abs_range_pos=4, abs_range_rot=1):
-    #     self.robot_frame = robot_frame
-    #     self.eef_frame = eef_frame
-    #     self.camera_frame = camera_frame
-    #     self.marker_frame = marker_frame
-    #     self.is_mobile = not base_marker_frame is None
-    #     self.base_marker_frame = base_marker_frame
-    #     self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
-    #     self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
-        
-    #     rospack = rospkg.RosPack()
-    #     self.conf_dir = join(rospack.get_path("robot_calibration"), "config")
-    #     if not exists(self.conf_dir):
-    #         makedirs(self.conf_dir)
-
-    def __init__(self, robot1_frame, eef1_frame, robot2_frame, eef2_frame, abs_range_pos=4, abs_range_rot=1):
-        self.robot1_frame = robot1_frame
-        self.eef1_frame = eef1_frame
-        self.robot2_frame = robot2_frame
-        self.eef2_frame = eef2_frame
-        
+    def __init__(self, robot_frame, eef_frame, camera_frame, marker_frame, base_marker_frame=None, abs_range_pos=4, abs_range_rot=1):
+        self.robot_frame = robot_frame
+        self.eef_frame = eef_frame
+        self.camera_frame = camera_frame
+        self.marker_frame = marker_frame
+        self.is_mobile = not base_marker_frame is None
+        self.base_marker_frame = base_marker_frame
         self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
         self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
         
@@ -43,6 +29,20 @@ class Calibration(object):
         self.conf_dir = join(rospack.get_path("robot_calibration"), "config")
         if not exists(self.conf_dir):
             makedirs(self.conf_dir)
+
+    # def __init__(self, robot1_frame, eef1_frame, robot2_frame, eef2_frame, abs_range_pos=4, abs_range_rot=1):
+    #     self.robot1_frame = robot1_frame
+    #     self.eef1_frame = eef1_frame
+    #     self.robot2_frame = robot2_frame
+    #     self.eef2_frame = eef2_frame
+        
+    #     self.bounds = self.init_bounds(abs_range_pos, abs_range_rot)
+    #     self.tfl = tf.TransformListener(True, rospy.Duration(2))  # tf will have 2 seconds of cache
+        
+    #     rospack = rospkg.RosPack()
+    #     self.conf_dir = join(rospack.get_path("robot_calibration"), "config")
+    #     if not exists(self.conf_dir):
+    #         makedirs(self.conf_dir)
 
     def init_bounds(self, abs_range_pos, abs_range_rot):
         bounds = []
@@ -175,13 +175,17 @@ class Calibration(object):
                 # norm of a quaternion is always 1
                 C += norm_coeff * abs(np.linalg.norm(transform[1]) - 1)
             return C
-        def distance_cost(pose1, pose2, rot_coeff=2):
+        def distance_cost(pose1, pose2, rot_coeff=0):
             pos_cost = 0
             # calculate position ditance
             pos_cost = np.linalg.norm(np.array(pose1[0]) - np.array(pose2[0]))
             # distance between two quaternions
             rot_cost = 1 - np.inner(pose1[1], pose2[1])**2
             return pos_cost + rot_coeff * rot_cost
+        def tool_cost(eef_transform, tool_transform):
+            return distance_cost(eef_transform, tool_transform, rot_coeff=1)
+
+
         # first extract the transformations
         list_calibr = Calibration.extract_transforms(calibrations)
         # set the base transform
@@ -199,7 +203,7 @@ class Calibration(object):
                 mobile_base = coords_base[i]
                 product = transformations.multiply_transform(mobile_base, product)
             product[1] /= np.linalg.norm(product[1])
-            cost += distance_cost(opt, product)
+            cost += distance_cost(opt, product) + 1 * tool_cost(robot, B)
         return cost
 
     @staticmethod

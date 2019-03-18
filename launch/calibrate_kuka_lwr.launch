@@ -1,12 +1,11 @@
 <launch>    
-    <arg name="ci" default="0"/>
+    <arg name="ci" default="1"/>
     <arg name="robot_frame" default="world"/>
     <arg name="camera_frame" default="camera/$(arg ci)"/>
-    <arg name="marker_frame" default="marker/17"/>
+    <arg name="marker_frame" default="marker/15"/>
     <arg name="eef_frame" default="lwr_7_link"/>
     <arg name="is_mobile" default="False"/>
     <arg name="base_marker_frame" default="marker/17"/>
-    <arg name="l" default="0.08"/>
 
     <param name="robot_frame" value="$(arg robot_frame)"/>
     <param name="camera_frame" value="$(arg camera_frame)"/>
